@@ -1,6 +1,5 @@
 // pages/notes/[id].js
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 
 const NoteDetail = () => {
@@ -36,14 +35,19 @@ const NoteDetail = () => {
         }
     }, [id]);
 
+    const navigateBack = () => {
+        // Redirect back to the notes page
+        router.push('/create');
+    };
+
     return (
         <div>
             <h1>Note Detail</h1>
             <p>Title: {note.title}</p>
             <p>Note: {note.note}</p>
-            <Link href="/notes">
-                <a>Back to Notes</a>
-            </Link>
+            <div style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={navigateBack}>
+                Back to Notes
+            </div>
         </div>
     );
 };

@@ -1,50 +1,66 @@
-// api/server/notes/create.js
-import { connectMongoDB } from '../../db/mongoDB';
-import Notes from '@/models/Note';
-import { verifyToken } from '../../middleware/authMiddleware'; // Import your token verification middleware
+import { connectMongoDB } from "../../db/mongoDB";
+import User from "@/models/User";
+import Note from "@/models/Note";
+import { getCookies, getCookie, setCookie, deleteCookie } from 'cookies-next';
+const { format } = require('date-fns');
+const { v4: uuidv4 } = require('uuid');
 
 connectMongoDB();
 
 export default async function handler(req, res) {
     try {
         if (req.method !== 'POST') {
-            return res
-                .status(405)
-                .json({ error: true, message: 'Method not allowed' });
+            return res.status(405).json({ error: true, message: 'Salah method' });
         }
 
-        const { title, content, token } = req.body;
+        const token = req.headers.authorization; // Extract token from headers
+        const user = await User.findOne({ token });
 
-        if (!title) {
-            return res
-                .status(400)
-                .json({ error: true, message: 'Title are required' });
-        }
-        if (!content) {
-            return res
-                .status(400)
-                .json({ error: true, message: 'content are required' });
-        }
-        if (!token) {
-            return res
-                .status(400)
-                .json({ error: true, message: 'token are required' });
+        if (!user || !user.name) {
+            deleteCookie('token', { req, res });
+            return res.status(400).json({
+                error: true,
+                message: 'token tidak valid',
+            });
         }
 
-        const user_id = verifyToken(token); // Use your token verification logic here
+        const { title, note } = req.body;
 
-        if (!user_id) {
-            return res.status(401).json({ error: true, message: 'Invalid token' });
+        if (!title || !note) {
+            return res.status(400).json({ error: true, message: 'Berkas yang anda kirimkan belum lengkap' });
         }
 
-        const newNote = new Notes({ title, content, user_id });
+        if (title.length < 3 || title.length >= 60) {
+            return res.status(400).json({
+                error: true,
+                message: 'title harus diantar 3 sampai 60 karakter',
+            });
+        } else if (note.length === 0 || note.length >= 2000) {
+            return res.status(400).json({
+                error: true,
+                message: 'note tidak boleh lebih dari 2000 karakter',
+            });
+        }
+
+        const userId = uuidv4();
+
+        const today = new Date();
+        const formattedDate = format(today, 'yyyy-MM-dd HH:mm:ss');
+
+        const data = {
+            title,
+            note,
+            userId,
+            date: formattedDate
+        };
+
+        const newNote = new Note(data);
         await newNote.save();
 
-        return res.status(201).json({ newNote });
-    } catch (error) {
-        console.error('Error during note creation:', error);
-        res
-            .status(500)
-            .json({ error: true, message: 'Internal Server Error' });
+        return res.status(201).json({ message: 'Data sudah berhasil diinputkan' });
+
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).json({ error: true, message: 'Internal Server Error', details: err.message });
     }
 }
